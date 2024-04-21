@@ -1,0 +1,13 @@
+# PHY432 Final Project
+# The Skywalkers
+# To Do
+
+
+- Collecting parameters:
+    - masses: Death Star (1 and 2), Endor(moon), Endor(big planet),
+                Earth, Moon, Sun, Starkiller Base
+    - volumes: (same objects)
+    - distances: Endor-Planet, Earth-Sun, Endor-Death Star, Earth-Death Star,
+                Earth-Moon, (Starkiller Base)
+
+- continue on Notion
