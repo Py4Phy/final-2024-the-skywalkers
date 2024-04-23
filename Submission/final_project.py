@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 matplotlib.style.use("ggplot")
-import tqdm.tqdm
+import tqdm
 
 
 
