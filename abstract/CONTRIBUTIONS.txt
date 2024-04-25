@@ -1,4 +1,4 @@
 Summarize the contributions of the teammates here.
 
-- Simon Tebeck (50%) - Task 1, 2, 3
-- Pranav Gupta (50%) - Task 4, 5, (optional 6)
+- Simon Tebeck (50%) - Task 2, 3
+- Pranav Gupta (50%) - Task 1, 4, (optional 5, 6)
