@@ -12,13 +12,14 @@ matplotlib.style.use("ggplot")
 import tqdm
 
 # integrators
-import integrators
+# import integrators
 
 
 
 # =============================================================================
 # 1. Initialising parameters
 # =============================================================================
+
 
 # gravitational constant
 G_gravity = 4*np.pi**2 *(1/365.256)**2 # astronomical units but per days not years
@@ -54,22 +55,39 @@ mass = {'Sun': 1.,
 # orbital period in Earth days
 period = {'Earth': 365.256,
           'Moon': 1
-}
+          }
 
 # for earth: use pre-determined speed at perihelion: 30.29 km/s
-speed_earth = 30.29 * 3600*24 / au
+speed_earth = 30.29 * 3600*24 / au # speed earth around sun at perihelion
+# for moon: speed at apogee: 0.996 km/s
+speed_moon =  0.996 * 3600*24 / au # speed moon around earth at apogee
+# for DS: number that lead to stable orbits
+speed_DS = 3.99 * 3600*24 / au # speed DS around earth
 
 
 # distance from the respective orbit center in AU
-# note: Earth distance at perihelion
-distance = {'Earth': 1.47098074e8 / au,
-            'Moon': 3.85e8 / au,
-}
+# note: Earth distance at perihelion (closest), Moon at apogee (farthest)
+distance = {'Earth': 1.47098074e8 / au, # e8 is in km!!
+            'Moon': 4.05696e5 / au,
+            'DS': 2.5e4 / au,
+            }
 
-# }
+# radii of the objects
+radius = {'Sun':696000 / au,
+          'Earth': 6357 / au,
+          'Moon': 1737 / au,
+          'Endor': 2450 / au,
+          'BB': 74000 / au,
+          'DS': 100 / au
+          }
 
-
-#------------------------------------------------------------
+# print('v', np.sqrt(G_gravity*mass['Earth']/distance['DS'])*au /(3600*24))
+# print(speed_earth)
+# print(speed_moon)
+# =============================================================================
+# 2. Functions for the orbit calculations (Solar System) (for Endor System
+# see other file in Submission)
+# =============================================================================
 
 
 def initial_position(distance, angle=0):
@@ -90,26 +108,6 @@ def initial_position(distance, angle=0):
     x = np.deg2rad(angle)
     return distance * np.array([np.cos(x), np.sin(x)])
 
-
-def initial_velocity(distance, period, angle=0):
-    # Convert angle from degrees to radians
-    angle_rad = angle * (np.pi / 180)
-
-    velocity_au_day = 2 * np.pi * distance / period
-
-    # Calculate x and y components of the velocity
-    vx = velocity_au_day * -np.sin(angle_rad)
-    vy = velocity_au_day * np.cos(angle_rad)
-
-    return np.array([vx, vy])
-
-
-# Calculate the initial velocities for Earth
-key = 'Earth'
-initial_velocity_earth = initial_velocity(distance[key], 
-                                            period[key], angle=0)
-
-# print(initial_velocity_earth)
 
 
 
@@ -161,29 +159,65 @@ def omega(v, r):
     return speed/distance
 
 
+def dist(r1, r2):
+    '''
+    Parameters r1, r2: np.array of shape r = [x,y]
+    Returns absolute value of the distance of connection vector
+    '''
+    return np.sqrt(np.sum((r1-r2)**2))
+
+
+def crash_detect(r):
+    crash = False
+    [r1, r2, r3] = r
+    if dist(r1, [0,0]) < (radius['Sun']+radius['Earth']):
+        print('Earth crashed into the Sun!')
+        crash = True
+    elif dist(r1, r2) < (radius['Moon']+radius['Earth']):
+        print('Moon crashed into the Earth!')
+        crash = True
+    elif dist(r1, r3) < (radius['DS']+radius['Earth']):
+        print('Deathstar crashed into the Earth!')
+        crash = True
+    elif dist(r3, np.array([0,0])) < (radius['DS']+radius['Sun']):
+        print('Deathstar crashed into the Sun!')
+        crash = True
+        
+    return crash
+
+
 # calculate the total force
 # r: input array [[x_Earth,y_Earth],[x_Moon,y_Moon],[x_DS,y_DS]]
-def F_total(r, m_earth=mass['Earth'], m_DS=mass['DS_A'], moon=False, DS=False):
+def F_total(r, m_earth=mass['Earth'], m_DS=mass['DS_A'],
+            sun=True, moon=False, DS=False):
     
+    # masses
     m_sun = mass['Sun']
     m_moon = mass['Moon']
     
+    # radii of objects
     r_earth = r[0]
     r_moon = r[1]
     r_DS = r[2]
+    
+    # deactivate sun if only orbits around Earth shall be observed
+    sunfactor = (1 if sun else 0) # ;)
     
     # note: F_x_y means force points from y to x
     
     if moon:
         # simulate moon
-        F_sun_moon = F_gravity(r_moon, m_moon, m_sun)
-        F_earth_moon = F_gravity(r_earth-r_moon, m_moon, m_earth)
+        F_sun_moon = F_gravity(r_moon, m_moon, m_sun) * sunfactor
+        F_earth_moon = F_gravity(r_moon-r_earth, m_moon, m_earth)
+        # print(F_sun_moon)
+        # print(F_earth_moon)
+        # print()
         
         if DS:
             # simulate DS
-            F_sun_DS = F_gravity(r_DS, m_DS, m_sun)
-            F_earth_DS = F_gravity(r_earth-r_DS, m_DS, m_earth)
-            F_moon_DS = F_gravity(r_moon-r_DS, m_DS, m_moon)
+            F_sun_DS = F_gravity(r_DS, m_DS, m_sun) * sunfactor
+            F_earth_DS = F_gravity(r_DS-r_earth, m_DS, m_earth)
+            F_moon_DS = F_gravity(r_DS-r_moon, m_DS, m_moon)
         else:
             # no interactions with DS
             F_sun_DS = F_earth_DS = F_moon_DS = np.zeros(2)
@@ -194,14 +228,14 @@ def F_total(r, m_earth=mass['Earth'], m_DS=mass['DS_A'], moon=False, DS=False):
         
         if DS:
             # simulate DS
-            F_sun_DS = F_gravity(r_DS, m_DS, m_sun)
-            F_earth_DS = F_gravity(r_earth-r_DS, m_DS, m_earth)
+            F_sun_DS = F_gravity(r_DS, m_DS, m_sun) * sunfactor
+            F_earth_DS = F_gravity(r_DS-r_earth, m_DS, m_earth)
         else:
             # no interactions with DS
             F_sun_DS = F_earth_DS = np.zeros(2)
             
     # always: Earth-Sun
-    F_sun_earth = F_gravity(r_earth, m_earth, m_sun)
+    F_sun_earth = F_gravity(r_earth, m_earth, m_sun) * sunfactor
     
     # total force
     F_tot = np.array([F_sun_earth - F_earth_moon - F_earth_DS,
@@ -212,73 +246,110 @@ def F_total(r, m_earth=mass['Earth'], m_DS=mass['DS_A'], moon=False, DS=False):
     
 
 
-
 # main algorithm: integrate the orbits
-def integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_A'],
-                     dt=0.1, t_max=160, moon=False, DS=False):
+def integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_A'], 
+                     distance_DS=distance['DS'], _speed_DS=speed_DS,
+                     dt=0.1, t_max=160, sun=True, moon=False, DS=False):
     """Integrate equations of motion
     """
     nsteps = int(t_max/dt)
     time = dt * np.arange(nsteps)
-
-    m_moon = mass['Moon']
-    # # r array: time steps, 2 planets, 2 room coordinates
-    # r = np.zeros((nsteps, 2, 2)) # [ [ [x_U_t1, y_U_t1], [x_N_t1, y_N_t1]], ...]
-    # v = np.zeros_like(r)
     
-    # r[0, 0, :] = initial_position(theta0['Uranus'], distance['Uranus'])
-    # r[0, 1, :] = initial_position(theta0['Neptune'], distance['Neptune'])
-    # v[0, 0, :] = initial_velocity(theta0['Uranus'], distance['Uranus'], period['Uranus'])
-    # v[0, 1, :] = initial_velocity(theta0['Neptune'], distance['Neptune'], period['Neptune'])
-
+    # masses
+    m_moon = mass['Moon']
+    
+    # speeds from global variables
+    _speed_earth = speed_earth * (1 if sun else 0) # when sun neglected, see earth as center
+    _speed_moon = speed_moon
     
     rt = np.zeros((nsteps, 3, 2)) # [[x_ea,y_ea],[x_mo,y_mo],[x_DS,y_DS]] for every time step
     vt = np.zeros_like(rt)
     
-
+    # initialising earth
     rt[0,0,:] = initial_position(distance['Earth'])
-    vt[0,0,:] = np.array([0, speed_earth])
+    vt[0,0,:] = np.array([0, _speed_earth])
     
-  
+    # initialising moon
+    rt[0,1,:] = initial_position(distance['Earth']) + np.array([0,distance['Moon']])
+    vt[0,1,:] = np.array([- 1*_speed_moon, _speed_earth])
+    
+    # initialising Death Star
+    rt[0,2,:] = initial_position(distance['Earth']) + np.array([0,-distance_DS])
+    vt[0,2,:] = np.array([1*_speed_DS, _speed_earth])
+    
+    print(np.sqrt(np.sum((vt[0])**2, axis=1)))
+    print()
 
     # integration verlocity verlet
-    Ft = F_total(rt[0])
+    Ft = F_total(rt[0], m_earth=m_earth, m_DS=m_DS, sun=sun, moon=moon, DS=DS)
+    # print(Ft[2])
     for i in tqdm.tqdm(range(nsteps-1)):
+        # print(vt[i,0])
+        # print(dist(rt[i,2], np.array([0,0])), Ft[2])
         m = np.array([[m_earth, m_earth],
                      [m_moon, m_moon],
                      [m_DS, m_DS]])
-        vhalf = vt[i] + 0.5 * dt * Ft / m
+        vhalf = vt[i] + 1 * dt * Ft / m
         rt[i+1] = rt[i] + dt * vhalf
     
         # new force
-        Ft = F_total(rt[i+1])
+        Ft = F_total(rt[i+1], m_earth=m_earth, m_DS=m_DS, moon=moon, DS=DS)
+        # print(Ft[2])
         vt[i+1] = vhalf + 0.5 * dt * Ft / m
+        # print(np.sqrt(np.sum((vt[i+1])**2, axis=1)))
+        
+        # crash detection: important to stop, otherwise F explodes
+        if crash_detect(rt[i+1]):
+            print('STOP SIMULATION')
+            print('CELESTIAL CATASTROPHE, PEOPLE DIED!')
+            # set all remaining r to the current r[i]
+            rt = np.where(rt==np.zeros((3,2)), rt[i+1], rt)
+            break
 
     return time, rt, vt
 
-dt=1e-1
-t_max=1*yr
-time1, r1, v1 = integrate_orbits(m_earth=mass['Earth'],
-                              dt=dt, t_max=t_max)
-time2, r2, v2 = integrate_orbits(m_earth=mass['Earth']+mass['Moon'],
-                              dt=dt, t_max=t_max)
-time3, r3, v3 = integrate_orbits(m_earth=mass['Earth']+mass['DS_B'],
-                              dt=dt, t_max=t_max)
-time4, r4, v4 = integrate_orbits(m_earth=mass['Earth']+mass['DS_B']+mass['Moon'],
-                              dt=dt, t_max=t_max)
+dt=1e-2
+t_max=2
+sun=True
+# time1, r1, v1 = integrate_orbits(m_earth=mass['Earth'],
+#                               dt=dt, t_max=t_max)
+time2, r2, v2 = integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_B'],
+                                 sun=sun, moon=True, DS=True, dt=dt, t_max=t_max)
+# time3, r3, v3 = integrate_orbits(m_earth=mass['Earth']+mass['DS_B'],
+#                               dt=dt, t_max=t_max)
+# time4, r4, v4 = integrate_orbits(m_earth=mass['Earth']+mass['DS_B']+mass['Moon'],
+#                               dt=dt, t_max=t_max)
 
-plt.plot(r1[:,0,0], r1[:,0,1], label='Earth')
-plt.plot(r2[:,0,0], r2[:,0,1], label='Earth + Moon')
-plt.plot(r3[:,0,0], r3[:,0,1], label='Earth + DS_B')
-plt.plot(r4[:,0,0], r4[:,0,1], label='Earth + Moon + DS_B')
-plt.plot(0,0, marker='o', markersize=20, color='yellow')
-plt.title('Earth\'s Orbit with different Objects')
+# plt.plot(r1[:,0,0], r1[:,0,1], label='Earth')
+
+def stretch_distance(rt, index=1, alpha=30):
+    r1 = rt[:,0]
+    r2 = rt[:,index]
+    rt[:,index] = r1 + alpha * (r2 - r1)
+    return rt
+    
+r2 = stretch_distance(r2, 1)
+r2 = stretch_distance(r2, 2, 100)
+
+plt.plot(r2[:,0,0], r2[:,0,1], c='b', label='Earth')
+# plt.plot(r2[:,1,0], r2[:,1,1], c='grey', label='Moon')
+plt.plot(r2[:,2,0], r2[:,2,1], c='black', label='DS')
+plt.plot(r2[0,0,0], r2[0,0,1], marker='o', c='b', markersize=8, label='Earth initial')
+# plt.plot(r2[0,1,0], r2[0,1,1], marker='o', c='grey', markersize=5, label='Moon initial')
+plt.plot(r2[0,2,0], r2[0,2,1], marker='o', c='black', markersize=5, label='DS initial')
+# plt.ylim(-2, 2)
+# plt.plot(r3[:,0,0], r3[:,0,1], label='Earth + DS_B')
+# plt.plot(r4[:,0,0], r4[:,0,1], label='Earth + Moon + DS_B')
+# if sun:
+#     plt.plot(0,0, marker='o', markersize=20, color='yellow')
+plt.title('DS\'s Orbit around Earth')
+
 plt.xlabel('x [AU]')
 plt.ylabel('y [AU]')
 plt.legend(loc=2)
-plt.axis('equal')
-plt.savefig('Earth_orbits_masses.png', dpi=300, bbox_inches='tight')
-
+# plt.axis('equal')
+# plt.savefig('Earth_DS_B.png', dpi=300, bbox_inches='tight')
+plt.show()
 
 
 
