@@ -6,3 +6,5 @@ https://science.nasa.gov/moon/tides/
 https://www.physicsforums.com/threads/solar-vs-lunar-tides-explaining-the-difference.535403/
 https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html
 https://moviepy.readthedocs.io/en/latest/getting_started/working_with_matplotlib.html
+https://austides.com/wp-content/uploads/2014/06/Kowalik_Luick_2011.pdf
+https://www.youtube.com/watch?v=pwChk4S99i4&t=423s
