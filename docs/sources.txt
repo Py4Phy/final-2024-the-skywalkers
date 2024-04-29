@@ -8,3 +8,5 @@ https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html
 https://moviepy.readthedocs.io/en/latest/getting_started/working_with_matplotlib.html
 https://austides.com/wp-content/uploads/2014/06/Kowalik_Luick_2011.pdf
 https://www.youtube.com/watch?v=pwChk4S99i4&t=423s
+https://matplotlib.org/stable/gallery/mplot3d/surface3d_2.html#sphx-glr-gallery-mplot3d-surface3d-2-py
+https://en.wikipedia.org/wiki/Tidal_range#/media/File:M2_tidal_constituent.jpg

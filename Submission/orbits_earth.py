@@ -3,6 +3,7 @@
 # Members: Simon Tebeck, Pranav Gupta
 # April 2024
 
+# Objective 2: Orbits Earth
 
 # import packages
 import numpy as np
@@ -53,10 +54,10 @@ mass = {'Sun': 1.,
         }
 
 # orbital period in Earth days
-period = {'Earth': 365.256,
-          'Moon': 1
+period = {'Earth': 365.256
           }
 
+# speeds in AU/day
 # for earth: use pre-determined speed at perihelion: 30.29 km/s
 speed_earth = 30.29 * 3600*24 / au # speed earth around sun at perihelion
 # for moon: speed at apogee: 0.966 km/s
@@ -87,6 +88,9 @@ radius = {'Sun':696000 / au,
 # see other file in Submission)
 # =============================================================================
 
+# note: Some of the following functions were inspired by HW07, code templates
+# offered by Oliver Beckstein, modified by Simon Tebeck
+
 
 def initial_position(distance, angle=0):
     """Calculate initial planet position.
@@ -105,7 +109,6 @@ def initial_position(distance, angle=0):
     """
     x = np.deg2rad(angle)
     return distance * np.array([np.cos(x), np.sin(x)])
-
 
 
 
@@ -166,6 +169,21 @@ def dist(r1, r2):
 
 
 def crash_detect(r):
+    '''
+    Detect crashes of celestial bodies
+
+    Parameters
+    ----------
+    r : np.array((3, 2))
+        x and y positions of the objects Earth (index 0), Moon (index 1)
+        and Death Star (index 2) for one time.
+
+    Returns
+    -------
+    crash : bool
+        did a crash happen? True or False.
+
+    '''
     crash = False
     [r1, r2, r3] = r
     if dist(r1, [0,0]) < (radius['Sun']+radius['Earth']):
@@ -188,6 +206,35 @@ def crash_detect(r):
 # r: input array [[x_Earth,y_Earth],[x_Moon,y_Moon],[x_DS,y_DS]]
 def F_total(r, m_earth=mass['Earth'], m_DS=mass['DS_A'],
             sun=True, moon=False, DS=False, earth_fixed=False):
+    '''
+    Calculate the total force acting between the bodies due to
+    Newton's law of Gravity
+
+    Parameters
+    ----------
+    r : np.array((3, 2))
+        x and y positions of the objects Earth (index 0), Moon (index 1)
+        and Death Star (index 2) for one time.
+    m_earth : float, optional,
+        mass earth in sun masses, default is mass['Earth'].
+    m_DS : float, optional
+        mass Death Star in sun masses. The default is mass['DS_A'].
+    sun : bool, optional
+        Toggles forces of the sun on or off. The default is True.
+    moon : bool, optional
+        Toggles Moon on or off. The default is False.
+    DS : bool, optional
+        Toggles Death Star on or off. The default is False.
+    earth_fixed : bool, optional
+        Toggles whether Earth is held fixed on or off. The default is False.
+
+    Returns
+    -------
+    F_tot : np.array((3, 2))
+        F_x and F_Y total forces acting on Earth (index 0), Moon (index 1)
+        and Death Star (index 2).
+
+    '''
     
     # masses
     m_sun = mass['Sun']
@@ -250,8 +297,43 @@ def integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_A'],
                      distance_DS=distance['DS'], _speed_DS=speed_DS,
                      dt=0.1, t_max=160, sun=True, moon=False, DS=False,
                      earth_fixed=False):
-    """Integrate equations of motion
-    """
+    '''
+    Integrate Equations of motions with Velocity Verlet to calculate orbits
+
+    Parameters
+    ----------
+    m_earth : float, optional,
+        mass earth in sun masses, default is mass['Earth'].
+    m_DS : float, optional
+        mass Death Star in sun masses. The default is mass['DS_A'].
+    distance_DS : float, optional
+        distance Earth-DS in AU. The default is distance['DS'].
+    _speed_DS : float, optional
+        orbit speed of DS around Earth in AU/day. The default is speed_DS.
+    dt : float, optional
+        integration time step in days. The default is 0.1.
+    t_max : float, optional
+        max integration time in days. The default is 160.
+    sun : bool, optional
+        Toggles forces of the sun on or off. The default is True.
+    moon : bool, optional
+        Toggles Moon on or off. The default is False.
+    DS : bool, optional
+        Toggles Death Star on or off. The default is False.
+    earth_fixed : bool, optional
+        Toggles whether Earth is held fixed on or off. The default is False.
+
+    Returns
+    -------
+    time : np.array((timesteps))
+    rt : np.array((timesteps, 3, 2))
+        x and y positions of the objects Earth (index 0), Moon (index 1)
+        and Death Star (index 2) for all time steps.
+    vt : np.array((timesteps, 3, 2))
+        v_x and v_y velocities of the objects Earth (index 0), Moon (index 1)
+        and Death Star (index 2) for all time steps.
+
+    '''
     nsteps = int(t_max/dt)
     time = dt * np.arange(nsteps)
     
@@ -312,63 +394,113 @@ def integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_A'],
 
 
 def orbit_time(r, t, neglect_first=100, eps=1e-4):
+    '''
+    Calculate the period it takes an object to complete an orbit
+
+    Parameters
+    ----------
+    r : np.array((timesteps, 1, 2))
+        x and y positions of the desired object for all time steps.
+        use slicing to select Earth (0), Moon(1) or the DS(2)
+    t : np.array((timesteps))
+    neglect_first : int, optional
+        How many entries in the r-array shall be neglected. The default is 100.
+    eps : float, optional
+        threshold for how close the Earth has to come back to the initial
+        position for the period to be seen as completed. The default is 1e-4.
+
+    Returns
+    -------
+    period_time: float
+        period time of Earth. =0 when time could not be calculated
+
+    '''
     r0 = r[0]
+    period_time = 0
     for index, ri in enumerate(r[neglect_first:]):
         if dist(r0, ri) < eps:
-            print('Orbit time successully calculated.')
-            return time[neglect_first + index]
+            print('Orbit time successfully calculated.')
+            period_time = time[neglect_first + index]
+            break
     else:
         print('Orbit time could NOT be calculated.')
-    return None
+    return period_time
 
 
 def stretch_distance(rt, index=1, alpha=30):
+    '''
+    Stretch distance of objects with respect to Earth (better visibility)
+
+    Parameters
+    ----------
+    rt : np.array((timesteps, 3, 2))
+        x and y positions of the objects Earth (index 0), Moon (index 1)
+        and Death Star (index 2) for all time steps.
+    index : int, optional
+        1 for Moon, 2 for Death Star. The default is 1.
+    alpha : float, optional
+        value the distance will be stretched with. The default is 30.
+
+    Returns
+    -------
+    rt : np.array((timesteps, 3, 2))
+        new x and y positions with stretched distances
+    str
+        String for documentation purposes.
+
+    '''
     r1 = rt[:,0]
     r2 = rt[:,index]
     rt[:,index] = r1 + alpha * (r2 - r1)
     return rt, '(stretched)'
         
 
+
+# =============================================================================
+# 3. Calculating Orbits
+# =============================================================================
+
+# initialise parameters of orbit calculation
 dt=1e-3
-t_max=3
-sun=False
+t_max=60
+sun=True
 DS=True
-moon=False
-earth_fixed=True
+moon=True
+earth_fixed=False
 moon_stretch = ''
 DS_stretch = ''
 
+# calculate orbits
 time, r, v = integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_A'],
                                  sun=sun, moon=moon, DS=DS, dt=dt, t_max=t_max,
                                  earth_fixed=earth_fixed)
 
+# stretch coordinates if necessary    
+r, moon_stretch = stretch_distance(r, 1)
+r, DS_stretch = stretch_distance(r, 2, 200)
 
-# plt.plot(0,0, marker='o', markersize=20, color='yellow')
-# plt.show()
-    
-# r, moon_stretch = stretch_distance(r, 1)
-r, DS_stretch = stretch_distance(r, 2, 10)
 
-plt.plot(r[:,0,0], r[:,0,1], c='b')
-plt.plot(r[0,0,0], r[0,0,1], marker='o', c='b', markersize=8, label='Earth')
-
-if moon:
-    plt.plot(r[:,1,0], r[:,1,1], c='grey')
-    plt.plot(r[0,1,0], r[0,1,1], marker='o', c='grey', markersize=5, 
-             label=f'Moon {moon_stretch}')
-
+# plot
 if DS:
     plt.plot(r[:,2,0], r[:,2,1], c='black')
     plt.plot(r[0,2,0], r[0,2,1], marker='o', c='black', markersize=5,
              label=f'DS {DS_stretch}')
     
-# plt.ylim(-2, 2)
-# plt.plot(r3[:,0,0], r3[:,0,1], label='Earth + DS_B')
-# plt.plot(r4[:,0,0], r4[:,0,1], label='Earth + Moon + DS_B')
-# if sun:
-#     plt.plot(0,0, marker='o', markersize=20, color='yellow')
+if moon:
+    plt.plot(r[:,1,0], r[:,1,1], c='grey')
+    plt.plot(r[0,1,0], r[0,1,1], marker='o', c='grey', markersize=5, 
+             label=f'Moon {moon_stretch}')
 
-plt.title('DS_A and Moon orbiting around Earth')
+plt.plot(r[:,0,0], r[:,0,1], c='b')
+plt.plot(r[0,0,0], r[0,0,1], marker='o', c='b', markersize=8, label='Earth')
+
+    
+if sun:
+    plt.plot(0,0, marker='o', markersize=20, color='yellow')
+# plt.plot(0,0, marker='o', markersize=20, color='yellow')
+
+
+plt.title(f'DS_A and Moon orbiting around Earth ({t_max} days)')
 plt.xlabel('x [AU]')
 plt.ylabel('y [AU]')
 plt.legend(loc=2)
@@ -376,87 +508,50 @@ plt.axis('equal')
 # plt.savefig('earth_moon_DS_A.png', dpi=300, bbox_inches='tight')
 plt.show()
 
-print(orbit_time(r[:,2], time, eps=4e-4))
+
+# Calculation of orbit times:
+    # note that t_max should be more than 366 in order for the calculation to
+    # work
+    
+# print(orbit_time(r[:,2], time, eps=4e-4))
 
 # =============================================================================
-# Compare omega
+# 4. Compare omega
 # =============================================================================
 
-# t_max = yr
+# change t_max for different time scales
+t_max = 10
 
-# dt=1e-1
-# time1, r1, v1 = integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_A'],
-#                               moon=False, DS=False, dt=dt, t_max=t_max)
+dt=1e-1
+time1, r1, v1 = integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_A'],
+                              moon=False, DS=False, dt=dt, t_max=t_max)
 
-# dt=1e-1
-# time2, r2, v2 = integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_B'],
-#                               moon=True, DS=False, dt=dt, t_max=t_max)
+dt=1e-1
+time2, r2, v2 = integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_B'],
+                              moon=True, DS=False, dt=dt, t_max=t_max)
 
-# dt=1e-3
-# time3, r3, v3 = integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_B'],
-#                               moon=False, DS=True, dt=dt, t_max=t_max)
+dt=1e-3
+time3, r3, v3 = integrate_orbits(m_earth=mass['Earth'], m_DS=mass['DS_B'],
+                              moon=False, DS=True, dt=dt, t_max=t_max)
 
 
-# o1 = omega(v1[:,0], r1[:,0])
-# o2 = omega(v2[:,0], r2[:,0])
-# o3 = omega(v3[:,0], r3[:,0])
-# plt.plot(time3,o3, label='Earth, DS_B', c='grey')
-# plt.plot(time1,o1, label='Earth')
-# plt.plot(time2,o2, label='Earth, Moon')
-# plt.legend()
-# plt.xlabel('t [days]')
-# plt.ylabel('$\omega$ [AU/day]')
-# plt.title('Angular Velocity of Earth (1 year)')
+o1 = omega(v1[:,0], r1[:,0])
+o2 = omega(v2[:,0], r2[:,0])
+o3 = omega(v3[:,0], r3[:,0])
+plt.plot(time3,o3, label='Earth, DS_B', c='grey')
+plt.plot(time1,o1, label='Earth')
+plt.plot(time2,o2, label='Earth, Moon')
+plt.legend()
+plt.xlabel('t [days]')
+plt.ylabel('$\omega$ [AU/day]')
+plt.title(f'Angular Velocity of Earth ({t_max} days)')
 # plt.savefig('omega_earth_1year.png', dpi=300, bbox_inches='tight')
+plt.show()
+
+#
+# IMPORTANT:
+# For more plots, see the Notebook orbits_earth.ipynb    
+#
 
 
-# # Simulatirint("Simulating Uranus and Neptune orbits WITHOUT interactions")
-# time, r0, v0 = integrate_orbits(t_max=160, coupled=False)
-# rU0 = r0[:, 0]  # Uranus position without interaction
-# vU0 = v0[:, 0]  # Uranus velocity without interaction
-# omegaU0 = omega(vU0, rU0)  # Angular velocity of Uranus without interaction
 
-# # Simulating orbits WITH interactions
-# print("Simulating Uranus and Neptune orbits WITH interactions")
-# time, r, v = integrate_orbits(t_max=160, coupled=True)
-# rU = r[:, 0]  # Uranus position with interaction
-# vU = v[:, 0]  # Uranus velocity with interaction
-# omegaU = omega(vU, rU)  # Angular velocity of Uranus with interaction
-
-# # Calculate DeltaOmega for Uranus
-# DeltaOmegaU = omegaU - omegaU0
-
-# # Plotting the orbits
-# plt.figure(figsize=(12, 6))
-# plt.suptitle('Orbits of Uranus and Neptune around the Sun', fontsize=25)
-
-# # Plot orbits without interactions
-# plt.subplot(1, 2, 1)
-# plt.plot(rU0[:, 0], rU0[:, 1], label="Uranus (No Interaction)")
-# plt.plot(r0[:, 1, 0], r0[:, 1, 1], label="Neptune (No Interaction)")
-# plt.title("Orbits Without Interactions")
-# plt.xlabel("x (AU)")
-# plt.ylabel("y (AU)")
-# plt.legend()
-
-# # Plot orbits with interactions
-# plt.subplot(1, 2, 2)
-# plt.plot(rU[:, 0], rU[:, 1], label="Uranus (With Interaction)")
-# plt.plot(r[:, 1, 0], r[:, 1, 1], label="Neptune (With Interaction)")
-# plt.title("Orbits With Interactions")
-# plt.xlabel("x (AU)")
-# plt.ylabel("y (AU)")
-# plt.legend()
-
-# plt.tight_layout()
-# plt.savefig('uranus_neptune_orbits.png')
-   
-# ng orbits WITHOUT interactions
-# p
-# # plot of delta omega
-# plt.figure()
-# plt.plot(time, DeltaOmegaU)
-# plt.xlabel('time [year]')
-# plt.ylabel('$\Delta\omega$ [rad/year]')
-# plt.title('Anomaly of $\Delta\omega$')
-# plt.savefig('uranus_anomaly.png')
