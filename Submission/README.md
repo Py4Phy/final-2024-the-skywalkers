@@ -5,8 +5,11 @@ This submission includes several files that include the code for the different o
 ## Project Structure
 
 **Objective 1: Data Collection**: The necessary data was collected in an Excel-sheet and can be found in the file 432_finalProject_task1.xlsx
+
 **Objective 2: Orbits**: This objective contains the main file orbits_earth.py, which has all the necessary functions to simulate orbits in our solar system. The same code is used in the corresponding Notebook orbits_earth.ipynb to generate plots and animations. Orbits of Endor are calculated in an analogous manner in the file orbits_endor.py.
+
 **Objective 3: Surface Impacts**: The calculations and plots can all be found in the file surface_impacts.ipynb.
+
 **Objective 4: Disappearance and Crash**: The last objective is analyzed with the code in the file final_project.ipynb.
 
 
